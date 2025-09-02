@@ -72,20 +72,6 @@ input int     DashboardSize_Y           = 210;              // Height
 input color   DashboardColor_BG         = clrDarkSlateGray; // Background
 input color   DashboardColor_TEXT       = clrWhite;         // Text
 
-//--- [Smart S/R Zones]
-//input group   "Smart S/R Zones"
-//input bool             DrawSmartSR            = true;         // Enable Smart S/R zones
-//input ENUM_TIMEFRAMES  SR_Timeframe           = PERIOD_M5;    // Base TF for swings
-//input int              SR_Left                = 3;            // Left wing (bars)
-//input int              SR_Right               = 3;            // Right wing (bars)
-//input int              SR_ScanBars            = 1500;         // How many bars to scan
-//input int              SR_MinTouches          = 2;            // Min touches to keep a zone
-//input int              SR_MaxZonesPerSide     = 5;            // Top K zones above/below price
-//input int              SR_HalfLifeBars        = 200;          // Recency half-life (bars)
-//input double           SR_ATR_ToleranceMult   = 0.50;         // Merge tolerance in ATR units
-//input double           SR_ATR_ZoneWidthMult   = 0.60;         // Zone vertical half-thickness in ATR units
-//input int              SR_ExtendMinutes       = 480;          // Extend zones into the future (minutes)
-//input int              SR_ProximityPoints     = 80;           // Block trades if price within N points of zone edge
-//input bool             SR_IncludePrevDayHL    = true;         // Include previous day's H/L as zones
+input double MinPointsToClose = 600; // close only if points > this threshold
 
 #endif // RDT_INPUTS_MQH

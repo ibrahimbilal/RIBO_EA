@@ -1,57 +1,45 @@
 //==============================================================//
-//=           SESSION-BASED PROFIT-ONLY CLOSER (RIBO)          =//
+//=  SESSION-BASED PROFIT-ONLY CLOSER — Points-based           =//
 //==============================================================//
 #include <Trade/Trade.mqh>
 
-//--------------------------------------------------------------//
-// Utility: Close a single position by ticket if it's profitable
-//--------------------------------------------------------------//
-bool RDT_CloseIfProfitableByTicket(const ulong ticket)
+double RDT_GetPointsPLByTicket(const ulong ticket)
 {
-    CTrade trade;
-    trade.SetExpertMagicNumber(MagicNumber);
-    trade.SetDeviationInPoints(MaxAllowedSlippage);
-
-   // Select the position by its ticket
-   if(!PositionSelectByTicket(ticket))
-      return false;
-
-   // Read required fields
-   double profitNet = PositionGetDouble(POSITION_PROFIT);   // Net of swaps & commissions
-   long   type      = (long)PositionGetInteger(POSITION_TYPE);
-
-   // Only close if net profit >= threshold
-   if(profitNet < 600.0)
-      return false;
-
-   // Attempt to close the position
-   bool closed = trade.PositionClose(ticket);
-   if(!closed)
-   {
-      // Optional: a very lightweight retry if first attempt fails
-      // (network hiccup / requote scenarios)
-      Sleep(50);
-      closed = trade.PositionClose(ticket);
-   }
-   return closed;
+   if(!PositionSelectByTicket(ticket)) return 0.0;
+   string sym = PositionGetString(POSITION_SYMBOL);
+   long   tp  = (long)PositionGetInteger(POSITION_TYPE);
+   double op  = PositionGetDouble(POSITION_PRICE_OPEN);
+   double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+   double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+   return (tp==POSITION_TYPE_BUY) ? (bid-op)/point : (op-ask)/point;
 }
 
-//-------------------------------------------------------------------//
-// Core: If session is OFF, close only profitable positions (no loss)
-//-------------------------------------------------------------------//
+bool RDT_CloseIfPointsProfitByTicket(const ulong ticket, const double minPts)
+{
+   if(!PositionSelectByTicket(ticket)) return false;
+   if((long)PositionGetInteger(POSITION_MAGIC) != MagicNumber) return false;
+
+   double pts = RDT_GetPointsPLByTicket(ticket);
+   if(pts <= minPts) return false;
+
+   static CTrade trade;
+   trade.SetExpertMagicNumber(MagicNumber);
+   trade.SetDeviationInPoints(MaxAllowedSlippage);
+
+   bool ok = trade.PositionClose(ticket);
+   if(!ok){ Sleep(50); ok = trade.PositionClose(ticket); }
+
+   Print(ok ? "Closed (forbidden session, pts>0): " : "Close failed: ",
+        "ticket=", ticket, " pts=", DoubleToString(pts,1));
+   return ok;
+}
+
 void RDT_CloseProfitablePositions_WhenSessionOff()
 {
-   // If feature disabled or session still allowed, do nothing
-   if(RDT_IsTradingAllowedNow())      return;
-
-   // Iterate positions from last to first (safe for closures while iterating)
-   const int total = PositionsTotal();
-   for(int i = total - 1; i >= 0; --i)
+   if(RDT_IsTradingAllowedNow()) return;
+   for(int i=PositionsTotal()-1;i>=0;--i)
    {
-      ulong ticket = PositionGetTicket(i);
-      if(ticket == 0) continue;
-
-      // Close only if profitable (net) and meets MinCloseProfit
-      RDT_CloseIfProfitableByTicket(ticket);
+      ulong tk = PositionGetTicket(i); if(tk==0) continue;
+      RDT_CloseIfPointsProfitByTicket(tk, MinPointsToClose);
    }
 }
